@@ -3,80 +3,110 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Task Manager Dashboard</title>
+    <title>My Task Dashboard</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6f9; color: #333; max-width: 500px; margin: 50px auto; padding: 20px; }
-        h2 { border-bottom: 2px solid #ddd; padding-bottom: 10px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6f9; color: #333; max-width: 550px; margin: 50px auto; padding: 20px; }
+        h2 { border-bottom: 2px solid #ddd; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
         .form-group { display: flex; gap: 10px; margin-bottom: 20px; }
         input[type="text"] { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; }
-        button { background: #0070f3; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        button { background: #0070f3; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold; }
         button:hover { background: #0051a8; }
         ul { list-style: none; padding: 0; }
-        li { background: white; padding: 12px; margin-bottom: 8px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .delete-btn { background: #ff3b30; font-size: 14px; padding: 5px 10px; }
+        li { background: white; padding: 12px; margin-bottom: 8px; border-radius: 4px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: 0.2s; }
+        .task-left { display: flex; align-items: center; gap: 12px; flex: 1; }
+        .task-title { font-size: 16px; transition: 0.2s; cursor: pointer; }
+        .completed { text-decoration: line-line-through; color: #888; text-decoration: line-through; }
+        .actions-right { display: flex; gap: 6px; }
+        .edit-btn { background: #ff9500; }
+        .edit-btn:hover { background: #e08200; }
+        .delete-btn { background: #ff3b30; }
         .delete-btn:hover { background: #cc2e24; }
+        input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
     </style>
 </head>
 <body>
 
-    <h2>📝 My Task Manager</h2>
+    <h2>📝 My Task Manager <span id="counter" style="font-size: 14px; color: #666;"></span></h2>
     
-    <!-- User Input Fields -->
     <div class="form-group">
-        <input type="text" id="taskTitle" placeholder="Enter a new task title">
+        <input type="text" id="taskTitle" placeholder="What needs to be done?">
         <button onclick="addTask()">Add Task</button>
     </div>
 
-    <!-- Live Task Container -->
     <ul id="taskList"></ul>
 
     <script>
         const API_URL = '/tasks';
 
-        // Fetch and display dynamic user tasks from the backend
         async function fetchTasks() {
             const res = await fetch(API_URL);
             const tasks = await res.json();
             const list = document.getElementById('taskList');
             list.innerHTML = '';
             
+            let activeCount = 0;
             tasks.forEach(task => {
+                if (!task.completed) activeCount++;
+                
                 const li = document.createElement('li');
                 li.innerHTML = `
-                    <span>${task.title}</span>
-                    <button class="delete-btn" onclick="deleteTask(${task.id})">Delete</button>
+                    <div class="task-left">
+                        <input type="checkbox" ${task.completed ? 'checked' : ''} onclick="toggleTask(${task.id}, ${task.completed})">
+                        <span class="task-title ${task.completed ? 'completed' : ''}" id="text-${task.id}">${task.title}</span>
+                    </div>
+                    <div class="actions-right">
+                        <button class="edit-btn" onclick="editTask(${task.id}, '${task.title}')">Edit</button>
+                        <button class="delete-btn" onclick="deleteTask(${task.id})">Delete</button>
+                    </div>
                 `;
                 list.appendChild(li);
             });
+            
+            document.getElementById('counter').innerText = `${activeCount} task(s) remaining`;
         }
 
-        // Send a custom task typed by the user to the backend
         async function addTask() {
             const input = document.getElementById('taskTitle');
-            const title = input.value;
+            if (!input.value.trim()) return;
 
             const res = await fetch(API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title: title })
+                body: JSON.stringify({ title: input.value })
             });
 
-            if (res.status === 201) {
+            if (res.ok) {
                 input.value = '';
                 fetchTasks();
-            } else {
-                const err = await res.json();
-                alert(err.detail);
             }
         }
 
-        // Delete a specific task
+        async function toggleTask(id, currentStatus) {
+            await fetch(`${API_URL}/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ completed: !currentStatus })
+            });
+            fetchTasks();
+        }
+
+        async function editTask(id, oldTitle) {
+            const newTitle = prompt("Update your task title:", oldTitle);
+            if (newTitle === null || !newTitle.trim()) return;
+
+            await fetch(`${API_URL}/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title: newTitle })
+            });
+            fetchTasks();
+        }
+
         async function deleteTask(id) {
             await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
             fetchTasks();
         }
 
-        // Load tasks immediately on start
         fetchTasks();
     </script>
 </body>
