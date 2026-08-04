@@ -47,9 +47,10 @@ app.delete('/tasks/:id', (req, res) => {
   res.status(204).send();
 });
 
-if (require.main === module) {
+if (process.env.NODE_ENV !== 'production' && require.main === module) {
   const PORT = 3000;
   app.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));
 }
 
 module.exports = app;
+
