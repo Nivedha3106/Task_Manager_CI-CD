@@ -1,4 +1,4 @@
-name: Node.js API CI Pipeline
+name: Node.js Dockerized CI Pipeline
 
 on:
   push:
@@ -7,24 +7,25 @@ on:
     branches: [ main ]
 
 jobs:
-  test-and-validate:
+  container-build-and-test:
     runs-on: ubuntu-latest
 
     steps:
+    # Step 1: Copy your code onto the clean Linux runner environment
     - name: Checkout repository code
       uses: actions/checkout@v4
 
-    # Setup automated Node environment
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
+    # Step 2: Set up Docker Buildx (Enables advanced caching features)
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    # Step 3: Compile the multi-stage container and trigger internal testing
+    - name: Build Docker Image and Execute Tests
+      uses: docker/build-push-action@v5
       with:
-        node-version: '26'
-        cache: 'npm' # Caches your node_modules to optimize workflow speed
-
-    # Clean install your exact package specifications
-    - name: Install dependencies
-      run: npm ci
-
-    # Run the comprehensive test suite
-    - name: Run API integration tests
-      run: npm test
+        context: .
+        file: ./Dockerfile
+        load: true # Loads the finished image into the local runner's context
+        tags: task-manager-app:latest
+        cache-from: type=gha # Speeds up builds by utilizing GitHub Actions global cache
+        cache-to: type=gha,mode=max
